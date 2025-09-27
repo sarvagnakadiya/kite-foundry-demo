@@ -17,6 +17,10 @@ OUT_DIR="$ROOT_DIR/out"
 SRC_DIR="$ROOT_DIR/src"
 FLATTEN_DIR="$ROOT_DIR/flattened"
 
+# Base URL (override with KITE_BASE_URL env var)
+BASE_URL="https://kite-app-omega.vercel.app"
+UPLOAD_URL="$BASE_URL/api/upload"
+
 # 1. Build all contracts (force rebuild to ensure artifact exists)
 echo "[INFO] Building contracts..."
 forge build --force >/dev/null
@@ -74,30 +78,40 @@ flattened_source=$(<"$FLATTENED_PATH")
 # 5. Build final JSON
 echo "[INFO] Building final JSON..." >&2
 
-jq -n \
-  --arg name "$CONTRACT_NAME" \
-  --arg path "$artifact_path" \
-  --arg bytecode "$bytecode" \
-  --arg compiler "$compiler" \
-  --arg sourcePath "$FLATTENED_PATH" \
-  --arg source "$flattened_source" \
-  --arg evmVersion "$evm_version" \
-  --argjson remappings "$remappings" \
-  --argjson optimizer "$optimizer_json" \
-  --argjson abi "$abi" \
-  '{
-    name: $name,
-    artifactPath: $path,
-    compilerVersion: $compiler,
-    abi: $abi,
-    bytecode: $bytecode,
-    flattenedSourcePath: $sourcePath,
-    flattenedSource: $source,
-    settings: {
-      evmVersion: $evmVersion,
-      remappings: $remappings,
-      optimizer: $optimizer
-    }
-  }' | jq > "${CONTRACT_NAME}_package.json"
+response=$(
+  jq -n \
+    --arg name "$CONTRACT_NAME" \
+    --arg path "$artifact_path" \
+    --arg bytecode "$bytecode" \
+    --arg compiler "$compiler" \
+    --arg sourcePath "$FLATTENED_PATH" \
+    --arg source "$flattened_source" \
+    --arg evmVersion "$evm_version" \
+    --argjson remappings "$remappings" \
+    --argjson optimizer "$optimizer_json" \
+    --argjson abi "$abi" \
+    '{
+      name: $name,
+      artifactPath: $path,
+      compilerVersion: $compiler,
+      abi: $abi,
+      bytecode: $bytecode,
+      flattenedSourcePath: $sourcePath,
+      flattenedSource: $source,
+      settings: {
+        evmVersion: $evmVersion,
+        remappings: $remappings,
+        optimizer: $optimizer
+      }
+    }' | curl -sS -X POST -H "Content-Type: application/json" --data-binary @- "$UPLOAD_URL"
+)
 
-echo "[INFO] JSON package created: ${CONTRACT_NAME}_package.json"
+inserted_id=$(echo "$response" | jq -r '.insertedId // empty')
+
+if [ -z "$inserted_id" ]; then
+  echo "[ERROR] Upload failed or no insertedId in response" >&2
+  echo "$response" >&2
+  exit 5
+fi
+
+echo "$inserted_id"
