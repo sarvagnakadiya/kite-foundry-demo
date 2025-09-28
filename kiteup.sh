@@ -96,8 +96,8 @@ response=$(
       compilerVersion: $compiler,
       abi: $abi,
       bytecode: $bytecode,
-      flattenedSourcePath: $sourcePath,
-      flattenedSource: $source,
+      sourcePath: $sourcePath,
+      source: $source,
       settings: {
         evmVersion: $evmVersion,
         remappings: $remappings,
@@ -114,4 +114,4 @@ if [ -z "$inserted_id" ]; then
   exit 5
 fi
 
-echo "$inserted_id"
+echo "https://kite-app-omega.vercel.app/$inserted_id"

@@ -80,12 +80,13 @@ sed -n '/function run/,/}/p' "$FILE" | grep -v 'function run' | grep -v '^}' | w
             # Extract inside parentheses
             inside=$(echo "$line" | sed 's/.*IERC20(\(.*\))\.approve(\(.*\))/\1,\2/')
             contract_addr=$(echo "$inside" | cut -d',' -f1)
-            amount=$(echo "$inside" | cut -d',' -f2)
+            spender=$(echo "$inside" | cut -d',' -f2)
+            amount=$(echo "$inside" | cut -d',' -f3)
 
-            # For approve, spender is the contract_addr
-            spender=$(get_constant "$contract_addr")
-            amount=$(get_constant "$amount")
+            # Map constants: IERC20(CONTRACT).approve(SPENDER, AMOUNT)
             contract_addr=$(get_constant "$contract_addr")
+            spender=$(get_constant "$spender")
+            amount=$(get_constant "$amount")
 
             [ "$first" = false ] && echo ',' >> "$OUTPUT"
             first=false
@@ -146,4 +147,4 @@ if [ -z "$inserted_id" ]; then
     exit 5
 fi
 
-echo "$inserted_id"
+echo "https://kite-app-omega.vercel.app/tx/$inserted_id"
